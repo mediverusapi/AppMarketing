@@ -53,7 +53,7 @@ def run_pipeline(
     extract_audio_to_wav(input_video_path, wav_path, sample_rate=16000, channels=1)
 
     print("[2/4] Running speaker diarization (this can take a while)...")
-    diarizer = Diarizer(hf_token=hf_token, device_preference=device)
+    diarizer = Diarizer(hf_token=hf_token, device_preference=device, num_speakers_hint=2)
     segments = diarizer.diarize(wav_path)
     spk_a, spk_b = diarizer.top_two_speakers(segments)
     print(f"Detected top speakers: A={spk_a} B={spk_b}")
@@ -90,14 +90,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--overlay-a",
         type=str,
-        default="assets/overlayGifs/sampleA.gif",
-        help="Path to Speaker A overlay GIF (background removed automatically)",
+        default="data/input/sampleA.gif",
+        help="Path to Speaker A overlay GIF (pre-removed background, RGBA)",
     )
     parser.add_argument(
         "--overlay-b",
         type=str,
-        default="assets/overlayGifs/sampleB.gif",
-        help="Path to Speaker B overlay GIF (background removed automatically)",
+        default="data/input/sampleB.gif",
+        help="Path to Speaker B overlay GIF (pre-removed background, RGBA)",
     )
     parser.add_argument(
         "--working-dir",

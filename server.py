@@ -26,10 +26,10 @@ except Exception:
 
 
 app = FastAPI(title="AppMarketing Pipeline API", version="0.1.0")
-# Prefer repo-local HF cache when present; allow override by process env
-os.environ.setdefault("HF_HOME", str((Path("models")/".hf_cache").resolve()))
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+# Offline mode disabled: allow online fetching of models from Hugging Face
+# os.environ.setdefault("HF_HOME", str((Path("models")/".hf_cache").resolve()))
+# os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,11 +76,6 @@ async def process_video(
     video: UploadFile = File(...),
     overlayA: Optional[UploadFile] = File(None),
     overlayB: Optional[UploadFile] = File(None),
-    position: str = Form("bottom-center"),
-    overlayWidthRatio: float = Form(0.35),
-    fps: Optional[int] = Form(None),
-    codec: str = Form("h264_videotoolbox"),
-    device: str = Form("auto"),
     hfToken: Optional[str] = Form(None),
     jobId: Optional[str] = Form(None),
 ):
@@ -110,15 +105,21 @@ async def process_video(
         overlay_b_path = save_upload(overlayB, "overlayB.gif")
 
         if overlay_a_path is None:
-            overlay_a_path = Path("assets/overlayGifs/sampleA.gif").resolve()
+            overlay_a_path = Path("data/input/sampleA.gif").resolve()
         if overlay_b_path is None:
-            overlay_b_path = Path("assets/overlayGifs/sampleB.gif").resolve()
+            overlay_b_path = Path("data/input/sampleB.gif").resolve()
 
         output_dir = (Path("data") / "output").resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = (output_dir / f"{upload_id}.mp4").resolve()
 
-        device_pref = None if device == "auto" else device
+        # Fixed settings (no UI options): position, overlay ratio, device
+        position = "bottom-center"
+        overlay_width_ratio = 0.35
+        fps = None
+        codec = "libx264"
+        preset = "veryfast"
+        device_pref = "mps"
         # Resolve token from request or environment only (no hardcoded fallback)
         hfToken = hfToken or os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HF_TOKEN")
 
@@ -152,11 +153,13 @@ async def process_video(
                 overlay_a_path=overlay_a_path,
                 overlay_b_path=overlay_b_path,
                 events=events,
-                position="bottom-center",
-                overlay_width_ratio=0.6,
+                position=position,
+                overlay_width_ratio=overlay_width_ratio,
                 fps=fps,
                 codec=codec,
+                preset=preset,
             )
+            log(f"Render settings: position={position}, ratio={overlay_width_ratio}, codec={codec}, preset={preset}, device={device_pref}")
             log("DONE")
             return final
 

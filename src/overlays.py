@@ -72,14 +72,12 @@ def _load_and_remove_gif_background(
     gif_path: Union[str, Path], target_width: int
 ):
     """
-    Load a GIF, remove background per frame using rembg, and return a MoviePy
-    ImageSequenceClip with an alpha mask.
+    Load a GIF and return a MoviePy ImageSequenceClip with an alpha mask.
+
+    Background removal is NOT performed here. This function assumes the GIF
+    already contains transparency (alpha). If no alpha channel is present, the
+    overlay is treated as fully opaque.
     """
-    remove = None
-    try:
-        from rembg import remove  # type: ignore
-    except Exception:
-        remove = None  # proceed without background removal
 
     try:
         import imageio
@@ -108,27 +106,17 @@ def _load_and_remove_gif_background(
 
     index = 0
     for frame in reader:
-        # frame: HxWx3 (RGB) or HxWx4
+        # frame: HxWx3 (RGB) or HxWx4 (RGBA)
         if getattr(frame, "ndim", 3) == 2:
             # grayscale → RGB
             frame = np.stack([frame, frame, frame], axis=2)
-        if remove is not None:
-            # Remove background -> returns RGBA
-            rgba = remove(frame)
-            if rgba.shape[2] == 3:
-                alpha = np.full(rgba.shape[:2], 255, dtype=np.uint8)
-                rgb = rgba
-            else:
-                rgb = rgba[:, :, :3]
-                alpha = rgba[:, :, 3]
+        # Use native alpha if present, otherwise keep opaque
+        if frame.shape[2] == 4:
+            rgb = frame[:, :, :3]
+            alpha = frame[:, :, 3]
         else:
-            # Fallback: use native alpha if present, otherwise keep opaque
-            if frame.shape[2] == 4:
-                rgb = frame[:, :, :3]
-                alpha = frame[:, :, 3]
-            else:
-                rgb = frame[:, :, :3]
-                alpha = np.full(rgb.shape[:2], 255, dtype=np.uint8)
+            rgb = frame[:, :, :3]
+            alpha = np.full(rgb.shape[:2], 255, dtype=np.uint8)
 
         # Resize both rgb and alpha to target width
         h, w = rgb.shape[:2]
@@ -203,6 +191,7 @@ def render_video_with_overlays(
     margin_px: int = 20,
     fps: Optional[int] = None,
     codec: str = "libx264",
+    preset: Optional[str] = None,
 ) -> Path:
     """
     Render a new video with background-removed GIF overlays placed during segments.
@@ -244,6 +233,20 @@ def render_video_with_overlays(
         a_anim = _load_and_remove_gif_background(ov_a, target_w)
         b_anim = _load_and_remove_gif_background(ov_b, target_w)
 
+        # Ensure non-zero base duration for looping logic
+        try:
+            a_base = float(getattr(a_anim, "duration", 0.0) or 0.0)
+        except Exception:
+            a_base = 0.0
+        if a_base <= 1e-6:
+            a_anim = a_anim.set_duration(0.1)
+        try:
+            b_base = float(getattr(b_anim, "duration", 0.0) or 0.0)
+        except Exception:
+            b_base = 0.0
+        if b_base <= 1e-6:
+            b_anim = b_anim.set_duration(0.1)
+
         ax, ay = a_anim.size
         bx, by = b_anim.size
         pos_a = _resolve_position(video_w, video_h, ax, ay, position, margin_px)
@@ -258,9 +261,17 @@ def render_video_with_overlays(
             duration = end - start
             which = str(e["overlay"]).upper()
             if which == "A":
-                segment = a_anim.fx(vfx.loop, duration=duration).set_start(start).set_position(pos_a)
+                base = float(getattr(a_anim, "duration", 0.0) or 0.0)
+                if base <= 1e-6:
+                    segment = a_anim.set_duration(duration).set_start(start).set_position(pos_a)
+                else:
+                    segment = a_anim.fx(vfx.loop, duration=duration).set_start(start).set_position(pos_a)
             else:
-                segment = b_anim.fx(vfx.loop, duration=duration).set_start(start).set_position(pos_b)
+                base = float(getattr(b_anim, "duration", 0.0) or 0.0)
+                if base <= 1e-6:
+                    segment = b_anim.set_duration(duration).set_start(start).set_position(pos_b)
+                else:
+                    segment = b_anim.fx(vfx.loop, duration=duration).set_start(start).set_position(pos_b)
             overlay_clips.append(segment)
 
         composite = CompositeVideoClip([base_clip, *overlay_clips])
@@ -277,6 +288,7 @@ def render_video_with_overlays(
             temp_audiofile=str(out_path.with_suffix(".temp-audio.m4a")),
             remove_temp=True,
             threads=4,
+            preset=preset,
         )
     finally:
         # Best-effort cleanup of resources

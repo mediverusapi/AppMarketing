@@ -39,17 +39,23 @@ class Diarizer:
         self._device = self._select_device(device_preference, torch)
         self._model_id = model_name or "pyannote/speaker-diarization-3.1"
         self._num_speakers_hint = num_speakers_hint
+        self._hf_token = (
+            hf_token
+            or os.getenv("HUGGINGFACE_TOKEN")
+            or os.getenv("HF_TOKEN")
+            or None
+        )
 
-        # Try to load the diarization pipeline from local cache/path; if not available, enable fallback
+        # Load diarization pipeline online (offline mode removed). We keep a
+        # simple fallback only if model loading truly fails.
         self._pipeline = None
         self._fallback = False
         try:
-            local_dir = self._find_local_model_dir(self._model_id)
-            if local_dir is not None:
-                self._pipeline = Pipeline.from_pretrained(str(local_dir))
-            else:
-                # Offline load by repo id; relies on local HF cache via HF_HOME
-                self._pipeline = Pipeline.from_pretrained(self._model_id)
+            # Note: use_auth_token is required for gated models.
+            self._pipeline = Pipeline.from_pretrained(
+                self._model_id,
+                use_auth_token=self._hf_token,
+            )
         except Exception:
             self._fallback = True
 
@@ -134,6 +140,7 @@ class Diarizer:
             try:
                 if num_hint is None:
                     return self._pipeline(audio_path)
+                # Prefer forcing exactly the requested number of speakers
                 try:
                     return self._pipeline(audio_path, num_speakers=int(num_hint))
                 except TypeError:
@@ -174,7 +181,7 @@ class Diarizer:
 
         # Re-cluster to exactly two consistent speakers and smooth short islands
         def _recluster_to_two_and_smooth(
-            segs: List[SpeakerSegment], min_island_sec: float = 0.25
+            segs: List[SpeakerSegment], min_island_sec: float = 0.5
         ) -> List[SpeakerSegment]:
             if not segs:
                 return segs

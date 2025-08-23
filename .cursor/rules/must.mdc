@@ -35,3 +35,39 @@ RUN/BUILD/TEST
 TROUBLESHOOTING
 - If UI can’t reach API, verify CORS (already permissive) and that API is on port 8000.
 - If models missing, hit GET /models and ensure `models/.hf_cache` exists.
+
+.env is in the project ro
+
+file tree 
+/Volumes/harddrive/AppMarketing
+├─ assets
+│  ├─ overlayGifs
+│  │  ├─ sampleA.gif
+│  │  └─ sampleB.gif
+│  └─ overlays
+├─ data
+│  ├─ input
+│  ├─ output
+│  └─ working
+├─ models
+├─ src
+│  ├─ __init__.py
+│  ├─ diarize.py
+│  ├─ ffmpeg_utils.py
+│  ├─ main.py
+│  └─ overlays.py
+├─ tests
+│  └─ test_smoke.py
+├─ web
+│  ├─ index.html
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ postcss.config.js
+│  ├─ src
+│  │  ├─ main.css
+│  │  └─ main.js
+│  ├─ tailwind.config.js
+│  └─ vite.config.js
+├─ Makefile
+├─ requirements.txt
+└─ server.py
