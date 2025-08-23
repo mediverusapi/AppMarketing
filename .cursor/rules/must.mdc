@@ -1,0 +1,37 @@
+---
+alwaysApply: true
+---
+Cursor Rules for AppMarketing
+
+This is a pipeline for uploading an mp4 file and 2 gifs, extracting audio, running speaker diarization using pyannote--speaker-diarization-3.1 and pyannote--segmentation-3.0, then removing background to the 2 uploaded gifs, and overlaying onto speaker a and speaker b, then finally rendering a video output. 
+
+
+PROJECT CONTEXT
+- Tech stack: FastAPI API (`server.py`) + Vite UI (`web/`).
+- Local OS: macOS (zsh). Prefer absolute paths under `/Volumes/harddrive/AppMarketing`.
+
+DEV COMMANDS (copy/paste)
+- Start API: cd "/Volumes/harddrive/AppMarketing" && uvicorn server:app --reload --host 0.0.0.0 --port 8000
+- Health check: curl -s http://localhost:8000/healthz
+- Start UI: cd "/Volumes/harddrive/AppMarketing/web" && npm run dev
+  - Expose on LAN if needed: npm run dev -- --host
+
+CONVENTIONS
+- Paths: Always use absolute paths when running commands.
+- Ports: API on 8000, UI on 5173 (Vite).
+- Data dirs: inputs `data/input/`, outputs `data/output/`, working `data/working/web/<jobId>/`.
+- Env: Optional `HUGGINGFACE_TOKEN` or `HF_TOKEN`; Hugging Face offline cache at `models/.hf_cache`.
+
+CODE & EDITING STYLE
+- Preserve existing indentation (tabs vs spaces) exactly; never mix or convert.
+- Python: clear naming, guard clauses, minimal nesting, no silent excepts.
+- Keep messages concise; use markdown headings and short code fences only when helpful.
+
+RUN/BUILD/TEST
+- Python deps: pip install -r requirements.txt (PyTorch per platform docs if needed).
+- Tests: cd "/Volumes/harddrive/AppMarketing" && pytest -q
+- Node: cd "/Volumes/harddrive/AppMarketing/web" && npm ci (or npm install) before dev if needed.
+
+TROUBLESHOOTING
+- If UI can’t reach API, verify CORS (already permissive) and that API is on port 8000.
+- If models missing, hit GET /models and ensure `models/.hf_cache` exists.

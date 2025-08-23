@@ -1,0 +1,50 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+.env
+
+# Node / Vite
+node_modules/
+web/node_modules/
+web/dist/
+dist/
+
+# Data & outputs (generated)
+data/input/
+data/output/
+data/working/
+
+# Models & caches (local only)
+models/
+models/.hf_cache/
+
+# Generated assets/logs
+assets/overlays/
+*.log
+
+__pycache__/
+.pytest_cache/
+.venv/
+.DS_Store
+.env
+.env.*
+.python-version
+
+# Editor
+.idea/
+.vscode/
+
+# Working data (intermediate artifacts)
+data/working/**
+
+# MoviePy temp artifacts
+moviepy_temp*/
+*.temp
+*.temp-audio.*
+
+
