@@ -4,6 +4,8 @@ import argparse
 from pathlib import Path
 from typing import List
 
+import numpy as np
+
 
 def _read_gif_frames_with_durations(path: Path):
     import imageio
@@ -64,14 +66,41 @@ def _remove_background_rgba(frames):
 
 
 def _write_gif_rgba(path: Path, frames_rgba, durations):
-    import imageio
+    """Write RGBA frames using Pillow with disposal=2 to avoid stacking.
 
-    # imageio will handle palette conversion; transparency becomes binary (as per GIF spec)
-    imageio.mimsave(
+    - Uses save_all + append_images
+    - Forces non-zero frame durations
+    - Sets disposal=2 (restore to background) for all frames
+    - Disables optimization to prevent unwanted frame differencing
+    """
+    from PIL import Image
+
+    if not frames_rgba:
+        raise ValueError("No frames to write")
+
+    pil_frames = [Image.fromarray(arr, "RGBA") for arr in frames_rgba]
+    durations_ms = [max(10, int(round(float(d) * 1000))) for d in durations]
+    # Ensure durations length matches number of frames
+    if len(durations_ms) != len(pil_frames):
+        if len(durations_ms) == 1:
+            durations_ms = durations_ms * len(pil_frames)
+        else:
+            durations_ms = [max(10, int(round(float(durations[0]) * 1000)))] * len(pil_frames)
+
+    # Set disposal for each appended frame
+    for frm in pil_frames:
+        frm.info["disposal"] = 2
+
+    first, rest = pil_frames[0], pil_frames[1:]
+    first.save(
         str(path),
-        frames_rgba,
-        duration=durations,
+        format="GIF",
+        save_all=True,
+        append_images=rest,
         loop=0,
+        duration=durations_ms,
+        disposal=2,
+        optimize=False,
     )
 
 
